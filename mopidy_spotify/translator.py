@@ -119,3 +119,31 @@ def to_mopidy_playlist(
     if spotify_playlist.owner().canonical_name() != username:
         name += ' by ' + spotify_playlist.owner().canonical_name()
     return Playlist(uri=uri, name=name, tracks=tracks)
+
+
+def web_to_artist(web_artist):
+    return Artist(uri=web_artist['uri'], name=web_artist['name'])
+
+
+def web_to_album(web_album):
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_album['artists']]
+
+    return Album(
+        uri=web_album['uri'],
+        name=web_album['name'],
+        artists=artists)
+
+
+def web_to_track(web_track):
+    artists = [
+        web_to_artist(web_artist) for web_artist in web_track['artists']]
+    album = web_to_album(web_track['album'])
+
+    return Track(
+        uri=web_track['uri'],
+        name=web_track['name'],
+        artists=artists,
+        album=album,
+        length=web_track['duration_ms'],
+        track_no=web_track['track_number'])

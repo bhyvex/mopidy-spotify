@@ -22,11 +22,18 @@ class Extension(ext.Extension):
         schema = super(Extension, self).get_config_schema()
         schema['username'] = config.String()
         schema['password'] = config.Secret()
+        schema['client_id'] = config.String()
+        schema['client_secret'] = config.Secret()
         schema['bitrate'] = config.Integer(choices=(96, 160, 320))
         schema['timeout'] = config.Integer(minimum=0)
         schema['cache_dir'] = config.Path(optional=True)
         schema['settings_dir'] = config.Path()
         schema['toplist_countries'] = config.List(optional=True)
+
+        schema['search_album_count'] = config.Integer(minimum=0, maximum=200)
+        schema['search_artist_count'] = config.Integer(minimum=0, maximum=200)
+        schema['search_track_count'] = config.Integer(minimum=0, maximum=200)
+
         return schema
 
     def setup(self, registry):

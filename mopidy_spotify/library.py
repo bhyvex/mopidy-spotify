@@ -53,6 +53,9 @@ SPOTIFY_COUNTRIES = {
     'TW': 'Taiwan',
     'US': 'United States'}
 
+_API_BASE_URI = 'https://api.spotify.com/v1/search'
+_SEARCH_TYPES = ['album', 'artist', 'track']
+
 
 class SpotifyTrack(Track):
     """Proxy object for unloaded Spotify tracks."""
@@ -215,9 +218,12 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
     def search(self, query=None, uris=None, exact=False):
         # TODO Only return results within URI roots given by ``uris``
         # TODO Support exact search
+        types=_SEARCH_TYPES
+        config = self.backend.config['spotify']
 
-        if not query:
-            return self._get_all_tracks()
+        if query is None:
+            logger.debug('Ignored search without query')
+            return SearchResult(uri='spotify:search')
 
         uris = query.get('uri', [])
         if uris:
@@ -236,45 +242,49 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
             logger.debug('Spotify search aborted due to empty query')
             return SearchResult(uri='spotify:search')
 
+        uri = 'spotify:search:%s' % urllib.quote(spotify_query.encode('utf-8'))
         logger.debug('Spotify search query: %s' % spotify_query)
-
-        future = pykka.ThreadingFuture()
-
-        def callback(results, userdata=None):
-            search_result = SearchResult(
-                uri='spotify:search:%s' % (
-                    urllib.quote(results.query().encode('utf-8'))),
-                albums=[
-                    translator.to_mopidy_album(a) for a in results.albums()],
-                artists=[
-                    translator.to_mopidy_artist(a) for a in results.artists()],
-                tracks=[
-                    translator.to_mopidy_track(t) for t in results.tracks()])
-            future.set(search_result)
 
         if not self.backend.spotify.connected.is_set():
             logger.debug('Not connected: Spotify search cancelled')
             return SearchResult(uri='spotify:search')
 
-        self.backend.spotify.session.search(
-            spotify_query, callback,
-            album_count=200, artist_count=200, track_count=200)
+        search_count = max(
+            config['search_album_count'],
+            config['search_artist_count'],
+            config['search_track_count'])
 
-        try:
-            return future.get(timeout=self._timeout)
-        except pykka.Timeout:
-            logger.debug(
-                'Timeout: Spotify search did not return in %ds', self._timeout)
-            return SearchResult(uri='spotify:search')
+        if search_count > 50:
+            logger.warn(
+                'Spotify currently allows maximum 50 search results of each type. '
+                'Please set the config values spotify/search_album_count, '
+                'spotify/search_artist_count and spotify/search_track_count '
+                'to at most 50.')
+            search_count = 50
 
-    def _get_all_tracks(self):
-        # Since we can't search for the entire Spotify library, we return
-        # all tracks in the playlists when the query is empty.
-        tracks = []
-        for ref in self.backend.playlists.as_list():
-            playlist = self.backend.playlists.lookup(ref.uri)
-            tracks += playlist.tracks
-        return SearchResult(uri='spotify:search', tracks=tracks)
+        result = self.backend._web_client.get(_API_BASE_URI, params={
+            'q': spotify_query,
+            'limit': search_count,
+            'market': 'from_token',
+            'type': ','.join(types)})
+
+        albums = [
+            translator.web_to_album(web_album) for web_album in
+            result['albums']['items'][:config['search_album_count']]
+        ] if 'albums' in result else []
+
+        artists = [
+            translator.web_to_artist(web_artist) for web_artist in
+            result['artists']['items'][:config['search_artist_count']]
+        ] if 'artists' in result else []
+
+        tracks = [
+            translator.web_to_track(web_track) for web_track in
+            result['tracks']['items'][:config['search_track_count']]
+        ] if 'tracks' in result else []
+
+        return SearchResult(
+            uri=uri, albums=albums, artists=artists, tracks=tracks)
 
     def _translate_search_query(self, mopidy_query):
         spotify_query = []
@@ -304,4 +314,4 @@ class SpotifyLibraryProvider(backend.LibraryProvider):
         return spotify_query
 
     def get_images(self, uris):
-        return images.get_images(uris)
+        return images.get_images(self.backend._web_client, uris)

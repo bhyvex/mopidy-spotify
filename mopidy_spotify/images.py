@@ -1,15 +1,12 @@
 from __future__ import unicode_literals
 
 import itertools
-import json
 import logging
 import operator
-import urllib2
 import urlparse
 
 from mopidy import models
 
-from mopidy_spotify import utils
 
 # NOTE: This module is independent of libspotify and built using the Spotify
 # Web APIs. As such it does not tie in with any of the regular code used
@@ -24,7 +21,7 @@ _cache = {}  # (type, id) -> [Image(), ...]
 logger = logging.getLogger(__name__)
 
 
-def get_images(uris):
+def get_images(web_client, uris):
     result = {}
     uri_type_getter = operator.itemgetter('type')
     uris = sorted((_parse_uri(u) for u in uris), key=uri_type_getter)
@@ -36,9 +33,10 @@ def get_images(uris):
             else:
                 batch.append(uri)
                 if len(batch) >= _API_MAX_IDS_PER_REQUEST:
-                    result.update(_process_uris(uri_type, batch))
+                    result.update(
+                        _process_uris(web_client, uri_type, batch))
                     batch = []
-        result.update(_process_uris(uri_type, batch))
+        result.update(_process_uris(web_client, uri_type, batch))
     return result
 
 
@@ -59,20 +57,17 @@ def _parse_uri(uri):
     raise ValueError('Could not parse %r as a Spotify URI' % uri)
 
 
-def _process_uris(uri_type, uris):
+def _process_uris(web_client, uri_type, uris):
     result = {}
+    ids = [u['id'] for u in uris]
     ids_to_uris = {u['id']: u for u in uris}
 
     if not uris:
         return result
 
-    try:
-        lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids_to_uris.keys()))
-        data = json.load(urllib2.urlopen(lookup_uri))
-    except (ValueError, IOError) as e:
-        error_msg = utils.locale_decode(e)
-        logger.debug('Fetching %s failed: %s', lookup_uri, error_msg)
-        return result
+    lookup_uri = _API_BASE_URI % (uri_type, ','.join(ids))
+
+    data = web_client.get(lookup_uri)
 
     for item in data.get(uri_type + 's', []):
         if not item:
