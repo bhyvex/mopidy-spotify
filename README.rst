@@ -75,17 +75,23 @@ Configuration
 =============
 
 Before starting Mopidy, you must add your Spotify Premium username and password
-to your Mopidy configuration file::
+to your Mopidy configuration file and also visit 
+https://www.mopidy.com/authenticate/#spotify to authorize this extension against
+your Spotify account::
 
     [spotify]
     username = alice
     password = secret
+    client_id = ... client_id value you got from mopidy.com ...
+    client_secret = ... client_secret value you got from mopidy.com ...
 
 The following configuration values are available:
 
 - ``spotify/enabled``: If the Spotify extension should be enabled or not.
 - ``spotify/username``: Your Spotify Premium username.
 - ``spotify/password``: Your Spotify Premium password.
+- ``spotify/client_id``: Your Spotify application client id.
+- ``spotify/client_secret``: Your Spotify application client id.
 - ``spotify/bitrate``: Audio bitrate in kbps. 96, 160 or 320. Defaults to 160.
 - ``spotify/timeout``: Seconds before giving up waiting for search results,
   etc. Defaults to 10 seconds.
@@ -95,6 +101,12 @@ The following configuration values are available:
 - ``spotify/settings_dir``: The dir where the Spotify extension stores
   libspotify settings. Defaults to ``$XDG_CONFIG_DIR/mopidy/spotify``, which
   usually means ``~/.config/mopidy/spotify``.
+- ``spotify/search_album_count``: Maximum number of albums returned in search
+  results. Number between 0 and 50. Defaults to 20.
+- ``spotify/search_artist_count``: Maximum number of artists returned in search
+  results. Number between 0 and 50. Defaults to 10.
+- ``spotify/search_track_count``: Maximum number of tracks returned in search
+  results. Number between 0 and 50. Defaults to 50.
 - ``spotify/toplist_countries``: Comma separated list of two letter country
   domains to get toplists for.
 
