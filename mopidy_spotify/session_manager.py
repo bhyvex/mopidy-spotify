@@ -177,9 +177,6 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
 
     def refresh_playlists(self):
         """Refresh the playlists in the backend with data from Spotify"""
-        if not self._initial_data_receive_completed:
-            logger.debug('Still getting data; skipped refresh of playlists')
-            return
         playlists = []
         folders = []
         for spotify_playlist in self.session.playlist_container():
