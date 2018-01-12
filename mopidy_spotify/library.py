@@ -103,7 +103,6 @@ class SpotifyTrack(Track):
 
 
 class SpotifyLibraryProvider(backend.LibraryProvider):
-    root_directory = Ref.directory(uri='spotify:directory', name='Spotify')
 
     def __init__(self, *args, **kwargs):
         super(SpotifyLibraryProvider, self).__init__(*args, **kwargs)
